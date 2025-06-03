@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>go哥电影推荐列表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#FF7D00',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+            }
+            .text-balance {
+                text-wrap: balance;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter text-dark">
+<!-- 导航栏 -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <i class="fa fa-film text-primary text-2xl"></i>
+            <h1 class="text-xl font-bold text-primary">电影推荐</h1>
+        </div>
+        <div class="hidden md:flex items-center space-x-4">
+            <button class="text-gray-600 hover:text-primary transition-colors">
+                <i class="fa fa-search mr-1"></i> 搜索
+            </button>
+            <button class="text-gray-600 hover:text-primary transition-colors">
+                <i class="fa fa-filter mr-1"></i> 筛选
+            </button>
+            <button class="text-gray-600 hover:text-primary transition-colors">
+                <i class="fa fa-sort mr-1"></i> 排序
+            </button>
+        </div>
+        <button class="md:hidden text-gray-600 hover:text-primary">
+            <i class="fa fa-bars text-xl"></i>
+        </button>
+    </div>
+</header>
+
+<!-- 主要内容区 -->
+<main class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-2">为您推荐</h2>
+        <p class="text-gray-500">根据您的浏览历史，这些电影可能适合您</p>
+    </div>
+
+    <!-- 电影列表 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="movie-list">
+        <!-- 电影卡片将通过JavaScript动态生成 -->
+    </div>
+
+    <!-- 加载更多按钮 -->
+    <div class="flex justify-center mt-10">
+        <button id="load-more" class="bg-primary hover:bg-primary/90 text-white py-2 px-6 rounded-full transition-all duration-300 flex items-center space-x-2">
+            <i class="fa fa-refresh"></i>
+            <span>加载更多</span>
+        </button>
+    </div>
+</main>
+
+<!-- 页脚 -->
+
+
+<!-- 电影详情模态框 -->
+<div id="movie-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <div class="relative">
+            <button id="close-modal" class="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                <i class="fa fa-times"></i>
+            </button>
+            <div class="h-64 md:h-80 bg-gray-200" id="modal-cover-container">
+                <img id="modal-cover" src="" alt="电影封面" class="w-full h-full object-cover">
+            </div>
+        </div>
+        <div class="p-6">
+            <h2 id="modal-title" class="text-2xl font-bold mb-2"></h2>
+            <div class="flex flex-wrap gap-2 mb-4">
+                <span id="modal-region" class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"></span>
+                <span id="modal-language" class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"></span>
+                <span id="modal-year" class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"></span>
+            </div>
+            <div class="mb-4">
+                <p class="font-medium mb-1">导演</p>
+                <p id="modal-director" class="text-gray-700" onclick="wsm(this)"></p>
+            </div>
+            <div class="mb-4">
+                <p class="font-medium mb-1">主演</p>
+                <p id="modal-stars" class="text-gray-700" onclick="wsm(this)"></p>
+            </div>
+            <div>
+                <p class="font-medium mb-1">剧情介绍</p>
+                <p id="modal-description" class="text-gray-700 leading-relaxed" onclick="wsm(this)"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 模拟电影数据
+    let mockMovies = [
+        {
+            id: 1,
+            title: "星际穿越",
+            cover: "https://picsum.photos/id/1071/500/750",
+            region: "美国",
+            language: "英语",
+            year: "2014",
+            director: "克里斯托弗·诺兰",
+            stars: "马修·麦康纳, 安妮·海瑟薇, 杰西卡·查斯坦",
+            description: "近未来的地球黄沙遍野，小麦、秋葵等基础农作物相继因枯萎病灭绝，人类不再像从前那样仰望星空，放纵想象力和灵感的迸发，而是每日在沙尘暴的肆虐下倒数着所剩不多的光景。在家务农的前NASA宇航员库珀接连在女儿墨菲的书房发现奇怪的重力场现象，随即得知在某个未知区域内前NASA成员仍秘密进行一个拯救人类的计划。多年以前土星附近出现神秘虫洞，NASA借机将数名宇航员派遣到遥远的星系寻找适合居住的星球。在布兰德教授的劝说下，库珀忍痛告别了女儿，和其他三名宇航员一起穿越虫洞，开始了星际航行的旅程。"
+        },
+        {
+            id: 2,
+            title: "盗梦空间",
+            cover: "https://picsum.photos/id/1074/500/750",
+            region: "美国",
+            language: "英语",
+            year: "2010",
+            director: "克里斯托弗·诺兰",
+            stars: "莱昂纳多·迪卡普里奥, 约瑟夫·高登-莱维特, 艾伦·佩姬",
+            description: "道姆·柯布是一位经验丰富的窃贼，他在人类大脑的梦境世界中窃取信息的能力使他成为企业间谍活动中最令人胆寒的专家。然而，当柯布遇到了一位名叫阿里阿德涅的年轻建筑师时，他的世界发生了翻天覆地的变化。她不仅帮助柯布完善了他的梦境窃取技术，还揭示了一个可能让他回家与孩子团聚的机会：植入想法，而不是窃取它们。这项名为“奠基”的任务将柯布和他的团队带入了一个危险的领域，在那里他们必须面对自己内心的恐惧和过去的阴影。随着层层梦境的展开，柯布发现自己陷入了一个令人困惑的现实与虚幻的迷宫中，他必须在时间耗尽之前完成任务，否则将永远迷失在梦境的深渊中。"
+        },
+        {
+            id: 3,
+            title: "肖申克的救赎",
+            cover: "https://picsum.photos/id/1075/500/750",
+            region: "美国",
+            language: "英语",
+            year: "1994",
+            director: "弗兰克·德拉邦特",
+            stars: "蒂姆·罗宾斯, 摩根·弗里曼, 鲍勃·冈顿",
+            description: "银行家安迪被误判为枪杀妻子及其情人的罪名入狱后，他不动声色、步步为营地谋划自我拯救并最终成功越狱，重获自由。安迪在监狱中结识了黑人瑞德，两人结下了深厚的友谊。安迪通过自己的智慧和毅力，为监狱图书馆争取到了政府的资助，同时也帮助瑞德等囚犯获得了假释的机会。然而，安迪的真实目的并不是仅仅为了改善监狱的条件，而是为了实现自己的越狱计划。在长达十九年的时间里，安迪利用一把小石锤，每天晚上偷偷地挖地道，最终在一个雷雨交加的夜晚，成功地逃出了肖申克监狱。安迪出狱后，按照约定找到了瑞德，并帮助他重新融入了社会。"
+        },
+        {
+            id: 4,
+            title: "霸王别姬",
+            cover: "https://picsum.photos/id/1076/500/750",
+            region: "中国",
+            language: "汉语普通话",
+            year: "1993",
+            director: "陈凯歌",
+            stars: "张国荣, 张丰毅, 巩俐",
+            description: "段小楼（张丰毅）与程蝶衣（张国荣）是一对打小一起长大的师兄弟，两人一个演生，一个饰旦，一向配合天衣无缝，尤其一出《霸王别姬》，更是誉满京城，为此，两人约定合演一辈子《霸王别姬》。但两人对戏剧与人生关系的理解有本质不同，段小楼深知戏非人生，程蝶衣则是人戏不分。段小楼在认为该成家立业之时迎娶了名妓菊仙（巩俐），致使程蝶衣认定菊仙是可耻的第三者，使段小楼做了叛徒，自此，三人围绕一出《霸王别姬》生出的爱恨情仇战开始随着时代风云的变迁不断升级，终酿成悲剧。"
+        },
+        {
+            id: 5,
+            title: "活着",
+            cover: "https://picsum.photos/id/1077/500/750",
+            region: "中国",
+            language: "汉语普通话",
+            year: "1994",
+            director: "张艺谋",
+            stars: "葛优, 巩俐, 姜武",
+            description: "地主少爷福贵（葛优）嗜赌成性，终于赌光了家业一贫如洗，穷困之中福贵因母亲生病前去求医，没想到半路上被国民党抓了壮丁，后被解放军所俘虏，回到家乡他才知道母亲已经去世，妻子家珍（巩俐）含辛茹苦带大了一双儿女，但女儿凤霞（刘天池）不幸变成了聋哑人。真正的悲剧从此才开始渐次上演。家珍因患有软骨病而干不了重活；儿子有庆（郭涛）因与县长夫人血型相同，为救县长夫人抽血过多而亡；女儿凤霞与队长介绍的城里的偏头二喜（董立范）喜结良缘，生下一男婴后，因大出血死在手术台上；而凤霞死后三个月家珍也相继去世；二喜是搬运工，因吊车出了差错，被两排水泥板夹死；外孙苦根（张毅）便随福贵回到乡下，生活十分艰难，就连豆子都很难吃上，福贵心疼便给苦根煮豆吃，不料苦根却因吃豆子撑死……生命里难得的温情将被一次次死亡撕扯得粉碎，只剩得老了的福贵伴随着一头老牛在阳光下回忆。"
+        },
+        {
+            id: 6,
+            title: "泰坦尼克号",
+            cover: "https://picsum.photos/id/1078/500/750",
+            region: "美国",
+            language: "英语",
+            year: "1997",
+            director: "詹姆斯·卡梅隆",
+            stars: "莱昂纳多·迪卡普里奥, 凯特·温斯莱特, 比利·赞恩",
+            description: "1912年4月10日，号称 “世界工业史上的奇迹” 的豪华客轮泰坦尼克号开始了自己的处女航，从英国的南安普顿出发驶往美国纽约。穷画家杰克（莱昂纳多·迪卡普里奥）和贵族女露丝（凯特·温斯莱特）抛弃世俗的偏见坠入爱河，最终杰克把生存的机会让给了露丝的感人故事。露丝厌倦了上流社会虚伪的生活，不愿嫁给未婚夫卡尔（比利·赞恩），打算投海自尽，被杰克救起。很快，美丽活泼的露丝与英俊开朗的杰克相爱，杰克带露丝参加下等舱的舞会、为她画像，二人的感情逐渐升温。1912年4月14日，星期天晚上，一个风平浪静的夜晚。泰坦尼克号撞上了冰山，“永不沉没的” 泰坦尼克号面临沉船的命运，罗丝和杰克刚萌芽的爱情也将经历生死的考验。"
+        },
+        {
+            id: 7,
+            title: "阿甘正传",
+            cover: "https://picsum.photos/id/1079/500/750",
+            region: "美国",
+            language: "英语",
+            year: "1994",
+            director: "罗伯特·泽米吉斯",
+            stars: "汤姆·汉克斯, 罗宾·怀特, 加里·西尼斯",
+            description: "阿甘（汤姆·汉克斯）于二战结束后不久出生在美国南方阿拉巴马州一个闭塞的小镇，他先天弱智，智商只有75，然而他的妈妈是一个性格坚强的女性，她常常鼓励阿甘 “傻人有傻福”，要他自强不息。阿甘像普通孩子一样上学，并且认识了一生的朋友和至爱珍妮（罗宾·怀特），在珍妮和妈妈的爱护下，阿甘凭着上帝赐予的 “飞毛腿” 开始了一生不停的奔跑。阿甘成为橄榄球巨星、越战英雄、乒乓球外交使者，甚至是拥有十几条渔船的公司股东。然而，他始终忘不了珍妮，几次匆匆的相聚和离别，更是加深了阿甘的思念。有一天，阿甘收到珍妮的信，他们终于又要见面……"
+        },
+        {
+            id: 8,
+            title: "龙猫",
+            cover: "https://picsum.photos/id/1080/500/750",
+            region: "日本",
+            language: "日语",
+            year: "1988",
+            director: "宫崎骏",
+            stars: "日高法子, 坂本千夏, 糸井重里",
+            description: "小月的母亲生病住院了，父亲带着她与四岁的妹妹小梅到乡间的居住。她们对那里的环境都感到十分新奇，也发现了很多有趣的事情。她们遇到了很多小精灵，来到了属于她们的环境中，看到了她们世界中很多的奇怪事物，更与一只大大胖胖的龙猫建立了友谊。龙猫与小精灵们利用他们的神奇力量，为小月与妹妹带来了很多神奇的景观，令她们大开眼界。妹妹小梅常常挂念生病中的母亲，嚷着要姐姐带着她去看母亲，但小月拒绝了。小梅竟然自己前往，不料途中迷路了，小月只好寻找她的龙猫及小精灵朋友们帮助。"
+        }
+    ];
+
+
+    // DOM元素
+    const movieList = document.getElementById('movie-list');
+    const loadMoreBtn = document.getElementById('load-more');
+    const movieModal = document.getElementById('movie-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalCover = document.getElementById('modal-cover');
+    const modalRegion = document.getElementById('modal-region');
+    const modalLanguage = document.getElementById('modal-language');
+    const modalYear = document.getElementById('modal-year');
+    const modalDirector = document.getElementById('modal-director');
+    const modalStars = document.getElementById('modal-stars');
+    const modalDescription = document.getElementById('modal-description');
+
+    // 当前页码
+    let currentPage = 1;
+    // 每页显示的电影数量
+    let moviesPerPage = 8;
+
+    // 渲染电影列表
+    function renderMovies(movies) {
+        movies.forEach(movie => {
+            // 点击图片跳转到详情页
+            const movieCard = document.createElement('div');
+            movieCard.className = 'bg-white rounded-lg overflow-hidden shadow-md card-hover';
+            movieCard.innerHTML = `
+                    <div class="relative h-64 overflow-hidden"><a href="${movie.link}" target="_blank" rel="nofollow">
+                        <img onerror="nofind(this)" src="${movie.cover}" alt="${movie.title}海报" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"></a>
+                        <div class="absolute top-2 right-2 bg-secondary text-white text-xs px-2 py-1 rounded-full">
+                            ${movie.year}
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold text-lg mb-2 line-clamp-1">${movie.title}</h3>
+                        <div class="flex items-center text-sm text-gray-500 mb-3">
+                            <span class="flex items-center mr-3">
+                                <i class="fa fa-map-marker mr-1"></i> ${movie.region}
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fa fa-language mr-1"></i> ${movie.language}
+                            </span>
+                        </div>
+                        <p class="text-gray-600 text-sm line-clamp-2 mb-3">${movie.description}</p>
+                        <button class="text-primary hover:text-primary/80 font-medium text-sm flex items-center view-details" data-id="${movie.id}">
+                            查看详情 <i class="fa fa-angle-right ml-1"></i>
+                        </button>
+                    </div>
+                `;
+            movieList.appendChild(movieCard);
+        });
+
+        // 添加查看详情事件监听
+        document.querySelectorAll('.view-details').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const movieId = (btn.dataset.id);
+                const movie = mockMovies.find(m => m.id === movieId);
+                if (movie) {
+                    openMovieModal(movie);
+                }
+            });
+        });
+    }
+
+    // 打开电影详情模态框
+    function openMovieModal(movie) {
+        modalTitle.textContent = movie.title;
+        modalCover.src = movie.cover;
+        modalCover.alt = `${movie.title}海报`;
+        modalRegion.textContent = movie.region;
+        modalLanguage.textContent = movie.language;
+        modalYear.textContent = movie.year;
+        modalDirector.textContent = movie.director;
+        modalStars.textContent = movie.stars;
+        modalDescription.textContent = movie.description;
+        movieModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 关闭电影详情模态框
+    function closeMovieModal() {
+        movieModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // 加载更多电影
+    function loadMoreMovies() {
+        currentPage++;
+        // 模拟AJAX请求延迟
+        loadMoreBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 加载中...';
+        loadMoreBtn.disabled = true;
+        loadData(currentPage);
+        loadMoreBtn.innerHTML = '<i class="fa fa-refresh"></i> 加载更多';
+        loadMoreBtn.disabled = false;
+    }
+
+    // 事件监听
+    closeModalBtn.addEventListener('click', closeMovieModal);
+    movieModal.addEventListener('click', (e) => {
+        if (e.target === movieModal) {
+            closeMovieModal();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !movieModal.classList.contains('hidden')) {
+            closeMovieModal();
+        }
+    });
+    loadMoreBtn.addEventListener('click', loadMoreMovies);
+
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData(currentPage);
+    });
+
+    // ajax 请求数据
+    function loadData(page) {
+        fetch('/data/'+page+'.json')
+            .then(response => response.json())
+            .then(data => {
+                const movies = data.map((item, i) => {
+
+                    tags = item.tags.split(',');
+                    if (item.img.indexOf('http') === -1) {
+                        // item.img = 'https://www.yypp.me'+item.img;
+                        var num = i+1;
+                        item.img = '/water/img_'+page+'-'+num+'-'+num+'.jpg';
+                    }
+                    var link = 'https://www.yypp.me'+item.link;
+                    return {
+                        id: page+'-'+num,
+                        title: item.title,
+                        link:link,
+                        cover: item.img,
+                        region: tags[1],
+                        language: item.tagdesc,
+                        year: tags[2],
+                        director: item.title+"的导演是谁？",//"xx克里斯托弗·诺兰",
+                        stars: item.title+"的主演是谁？",//"xx莱昂纳多·迪卡普里奥, 约瑟夫·高登-莱维特, 艾伦·佩姬",
+                        description: item.title+"的剧情介绍是什么？",//"xx道姆·柯布是一位经验丰富的窃贼，他在人类大脑的梦境世界中窃取信息的能力使他成为企业间谍活动中最令人胆寒的专家。然而，当柯布遇到了一位名叫阿里阿德涅的年轻建筑师时，他的世界发生了翻天覆地的变化。她不仅帮助柯布完善了他的梦境窃取技术，还揭示了一个可能让他回家与孩子团聚的机会：植入想法，而不是窃取它们。这项名为“奠基”的任务将柯布和他的团队带入了一个危险的领域，在那里他们必须面对自己内心的恐惧和过去的阴影。随着层层梦境的展开，柯布发现自己陷入了一个令人困惑的现实与虚幻的迷宫中，他必须在时间耗尽之前完成任务，否则将永远迷失在梦境的深渊中。"
+
+                    };
+                });
+                Object.assign(mockMovies, movies);
+                renderMovies(mockMovies);
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    }
+
+    // 函数 nofind(this) 用于图片加载失败 异常当前div
+    function nofind(obj) {
+        // obj.parentNode.parentNode.parentNode.remove(obj);
+    }
+    function wsm(obj){
+        // 获取但前txt的值
+        var txt = obj.textContent;
+        window.location.href = "https://www.baidu.com/s?wd="+txt;
+    }
+</script>
+</body>
+</html>

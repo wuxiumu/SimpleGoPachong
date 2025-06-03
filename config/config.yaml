@@ -1,0 +1,23 @@
+app:
+  name: MyApp
+  env: development
+  port: 8080
+  basedomainurl: https://yypp.me/
+  basecachepageurl: /Users/mac/code/git/7days-golang/爬虫练习/cache/yypp.me/page/
+  basecachedataurl: /Users/mac/code/git/7days-golang/爬虫练习/cache/yypp.me/data/
+  basecachelogurl: /Users/mac/code/git/7days-golang/爬虫练习/cache/yypp.me/log/
+  basewaterpageurl: /Users/mac/code/git/7days-golang/爬虫练习/cache/yypp.me/water/
+  totalpages: 1258
+  startpage: 1
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: password
+  dbname: mydb
+  pageconnt: 1258
+
+logging:
+  level: debug
+  format: json
